@@ -8,7 +8,9 @@ public class BootingSceneController : SceneController
 {
     public override void OnLoaded()
     {
-        UIManager.Instance.Show<SplashPanel>();
+        ObjectPooling.Instance.Init(null);
+
+        UIManager.Instance.Show<SplashTransition>();
         Timing.RunCoroutine(ChangeScene());
     }
 
@@ -18,6 +20,6 @@ public class BootingSceneController : SceneController
 
         CoreSceneManager.Instance.ChangeScene(ContextNameGenerated.CONTEXT_GAME);
 
-        UIManager.Instance.Hide<SplashPanel>(isDisable: true, isDestroy: true);
+        UIManager.Instance.Hide<SplashTransition>(isDisable: true, isDestroy: true);
     }
 }

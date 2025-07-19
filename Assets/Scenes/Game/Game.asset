@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Game
   m_EditorClassIdentifier: 
   Scene: {fileID: 102900000, guid: 7186c110928efde4a9a736ad249a721f, type: 3}
-  GUID: 
+  GUID: 023ca24e589bf7c4db4e48e1b2c95559
   ScenePath: Assets/Scenes/Game/Game.unity
   SceneName: Game
   IsGameContext: 1

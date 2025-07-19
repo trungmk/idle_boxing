@@ -1,9 +1,8 @@
 using Core;
-using UnityEngine;
 
-public class SplashPanel : BaseView
+public class SplashTransition : BaseScreenTransition
 {
-    protected override void OnShow(params object[] args)
+    protected override void OnTransitionScreenShowed(params object[] args)
     {
         
     }
