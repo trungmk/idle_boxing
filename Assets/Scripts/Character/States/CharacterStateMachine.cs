@@ -1,5 +1,4 @@
-﻿using Assets.Scripts.Character.States;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -33,7 +32,7 @@ public class CharacterStateMachine : MonoBehaviour
         _states[CharacterStateType.Attack] = new AttackState(_character);
         _states[CharacterStateType.Hit] = new HitState(_character);
         _states[CharacterStateType.Dead] = new DeadState(_character);
-        _states[CharacterStateType.Victory] = new VictoryState(_character);
+        _states[CharacterStateType.Victory] = new WinState(_character);
         _states[CharacterStateType.Stunned] = new StunnedState(_character);
 
         // Set initial state
@@ -78,7 +77,12 @@ public class CharacterStateMachine : MonoBehaviour
         _currentState?.UpdatePhysics(fixedDeltaTime);
     }
 
-    public T GetState<T>() where T : CharacterState
+    public void FixedUpdateLogic(float deltaTime)
+    {
+        _currentState?.LateUpdateLogic(deltaTime);
+    }
+
+    public T GetState<T>() where T : CharacterBaseState
     {
         foreach (var state in _states.Values)
         {

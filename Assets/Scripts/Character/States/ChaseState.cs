@@ -17,6 +17,6 @@ public class ChaseState : CharacterBaseState
 
     public override void Exit()
     {
-        _character.MovementController?.Stop();
+        _character.MovementComponent?.Stop();
     }
 }

@@ -8,7 +8,7 @@ public class StunnedState : CharacterBaseState
     public override void Enter()
     {
         _character.AnimationController?.PlayStunned();
-        _character.MovementController?.Stop();
+        _character.MovementComponent?.Stop();
     }
 
     public override void UpdateLogic(float deltaTime)

@@ -11,7 +11,7 @@ public class WinState : CharacterBaseState
     public override void Enter()
     {
         _character.AnimationController?.PlayVictory();
-        _character.MovementController?.Stop();
+        _character.MovementComponent?.Stop();
         _victoryTimer = 0f;
     }
 

@@ -8,7 +8,7 @@ public class IdleState : CharacterBaseState
     public override void Enter()
     {
         _character.AnimationController?.PlayIdle();
-        _character.MovementController?.Stop();
+        _character.MovementComponent?.Stop();
     }
 
     public override void UpdateLogic(float deltaTime)

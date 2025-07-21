@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 using System;
 
-public class CharacterAttackController : CharacterComponentBase
+public class CharacterAttackComponent : CharacterComponentBase
 {
     private Character _character;
     private bool _isInitialized;
@@ -27,16 +27,16 @@ public class CharacterAttackController : CharacterComponentBase
 
     public void AttackTarget(Character target)
     {
-        if (!CanAttack || target == null) return;
+        if (!CanAttack || target == null)
+        {
+            return;
+        }
 
         _isAttacking = true;
         _lastAttackTime = Time.time;
-
         _character.ChangeState(CharacterStateType.Attack);
-
         OnAttackStarted?.Invoke(target);
 
-        // Deal damage after animation delay
         Invoke(nameof(DealDamageToTarget), 0.3f);
     }
 

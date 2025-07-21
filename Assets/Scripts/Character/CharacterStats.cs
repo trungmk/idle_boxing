@@ -1,7 +1,10 @@
 ﻿using UnityEngine;
 
+[CreateAssetMenu(fileName = "CharacterStats", menuName = "Game Data/Character/CharacterStats", order = 1)]
 public class CharacterStats : ScriptableObject
 {
+    public string CharacterName = "Default Character";
+
     public float MaxHealth = 100f;
 
     public float AttackPower = 20f;

@@ -11,7 +11,7 @@ public class HitState : CharacterBaseState
     public override void Enter()
     {
         _character.AnimationController?.PlayHit();
-        _character.MovementController?.Stop();
+        _character.MovementComponent?.Stop();
         _hitTimer = 0f;
     }
 

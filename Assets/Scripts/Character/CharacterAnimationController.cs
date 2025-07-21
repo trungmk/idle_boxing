@@ -4,15 +4,11 @@ using UnityEngine;
 
 public class CharacterAnimationController : MonoBehaviour
 {
-    [Header("Animation Setup")]
     [SerializeField] 
     private Animator _animator;
 
     [SerializeField] 
     private float _defaultCrossFadeTime = 0.1f;
-
-    [SerializeField] 
-    private bool _debugMode = false;
 
     private Character _character;
 
@@ -57,8 +53,6 @@ public class CharacterAnimationController : MonoBehaviour
     public event Action OnAttackHitFrame;
     public event Action OnFootstep;
 
-    #region Properties
-
     public Animator Animator => _animator;
     public bool IsInitialized => _isInitialized;
     public CharacterStateType CurrentAnimationState => _currentAnimationState;
@@ -73,19 +67,11 @@ public class CharacterAnimationController : MonoBehaviour
     public bool IsPlayingVictory => IsInState(VICTORY_STATE);
     public bool IsPlayingStunned => IsInState(STUNNED_STATE);
 
-    #endregion
-
-    #region Unity Lifecycle
-
     private void Awake()
     {
         if (_animator == null)
             _animator = GetComponent<Animator>();
     }
-
-    #endregion
-
-    #region Initialization
 
     public void Initialize(Character character)
     {
@@ -102,8 +88,6 @@ public class CharacterAnimationController : MonoBehaviour
         SubscribeToCharacterEvents();
 
         _isInitialized = true;
-
-        DebugLog("CharacterAnimationController initialized");
     }
 
     private void CacheAnimationClips()
@@ -145,10 +129,6 @@ public class CharacterAnimationController : MonoBehaviour
         _character.OnRevive += HandleRevive;
     }
 
-    #endregion
-
-    #region Update Logic
-
     public void UpdateLogic(float deltaTime)
     {
         if (!_isInitialized || _animator == null) return;
@@ -165,9 +145,9 @@ public class CharacterAnimationController : MonoBehaviour
         bool isMoving = _character.IsMoving;
         SetBool(IS_MOVING_PARAM, isMoving);
 
-        if (isMoving && _character.MovementController != null)
+        if (isMoving && _character.MovementComponent != null)
         {
-            float moveSpeed = _character.MovementController.CurrentSpeed / _character.Stats.MoveSpeed;
+            float moveSpeed = _character.MovementComponent.CurrentSpeed / _character.Stats.MoveSpeed;
             SetFloat(MOVE_SPEED_PARAM, moveSpeed);
         }
         else
@@ -203,10 +183,6 @@ public class CharacterAnimationController : MonoBehaviour
         }
     }
 
-    #endregion
-
-    #region Public Animation Control
-
     public void PlayStateAnimation(CharacterStateType stateType, float crossFadeTime = -1f)
     {
         if (crossFadeTime < 0f)
@@ -227,18 +203,16 @@ public class CharacterAnimationController : MonoBehaviour
         {
             _animator.CrossFade(animationHash, crossFadeTime);
             OnAnimationStarted?.Invoke(animationName);
-            DebugLog($"Playing animation: {animationName}");
-        }
-        else
-        {
-            DebugLog($"Animation not found: {animationName}");
         }
     }
 
     public void SetAnimationSpeed(float speed)
     {
-        if (!_isInitialized || _animator == null) return;
-
+        if (!_isInitialized || _animator == null)
+        {
+            return;
+        } 
+            
         _currentAnimationSpeed = Mathf.Max(0f, speed);
         _animator.speed = _currentAnimationSpeed;
     }
@@ -252,10 +226,6 @@ public class CharacterAnimationController : MonoBehaviour
     {
         SetFloat(ATTACK_SPEED_PARAM, speed);
     }
-
-    #endregion
-
-    #region State-Specific Animation Methods
 
     public void PlayIdle()
     {
@@ -293,10 +263,6 @@ public class CharacterAnimationController : MonoBehaviour
     {
         PlayStateAnimation(CharacterStateType.Stunned);
     }
-
-    #endregion
-
-    #region Animation Parameter Control
 
     public void SetTrigger(string parameterName)
     {
@@ -337,10 +303,6 @@ public class CharacterAnimationController : MonoBehaviour
             _animator.SetInteger(parameterName, value);
         }
     }
-
-    #endregion
-
-    #region Animation Query Methods
 
     public bool IsInState(string stateName)
     {
@@ -394,14 +356,9 @@ public class CharacterAnimationController : MonoBehaviour
         return false;
     }
 
-    #endregion
-
-    #region Event Handlers
-
     private void HandleStateChanged(CharacterStateType oldState, CharacterStateType newState)
     {
         PlayStateAnimation(newState);
-        DebugLog($"State changed: {oldState} -> {newState}");
     }
 
     private void HandleHealthChanged(float newHealth)
@@ -424,14 +381,12 @@ public class CharacterAnimationController : MonoBehaviour
         PlayIdle();
     }
 
-    #endregion
-
-    #region Animation Events (Called from Animation Events)
-
     public void OnAttackHitFrameEvent()
     {
-        OnAttackHitFrame?.Invoke();
-        DebugLog("Attack hit frame reached");
+        if (OnAttackHitFrame != null)
+        {
+            OnAttackHitFrame();
+        }
     }
 
     public void OnFootstepEvent()
@@ -442,12 +397,12 @@ public class CharacterAnimationController : MonoBehaviour
     public void OnAnimationCompleteEvent()
     {
         string currentState = GetCurrentStateName();
-        OnAnimationCompleted?.Invoke(currentState);
+
+        if (OnAnimationCompleted != null)
+        {
+            OnAnimationCompleted(currentState);
+        }
     }
-
-    #endregion
-
-    #region Utility Methods
 
     private string GetAnimationNameForState(CharacterStateType stateType)
     {
@@ -464,18 +419,6 @@ public class CharacterAnimationController : MonoBehaviour
         };
     }
 
-    private void DebugLog(string message)
-    {
-        if (_debugMode)
-        {
-            Debug.Log($"[{gameObject.name}] AnimationController: {message}", this);
-        }
-    }
-
-    #endregion
-
-    #region Cleanup
-
     private void OnDestroy()
     {
         if (_character != null)
@@ -486,42 +429,4 @@ public class CharacterAnimationController : MonoBehaviour
             _character.OnRevive -= HandleRevive;
         }
     }
-
-    #endregion
-
-    #region Editor Support
-
-#if UNITY_EDITOR
-    [ContextMenu("Test All Animations")]
-    private void TestAllAnimations()
-    {
-        if (!Application.isPlaying) return;
-
-        StartCoroutine(TestAnimationSequence());
-    }
-
-    private System.Collections.IEnumerator TestAnimationSequence()
-    {
-        CharacterStateType[] states = {
-                CharacterStateType.Idle,
-                CharacterStateType.Chase,
-                CharacterStateType.Attack,
-                CharacterStateType.Hit,
-                CharacterStateType.Stunned,
-                CharacterStateType.Victory,
-                CharacterStateType.Dead
-            };
-
-        foreach (var state in states)
-        {
-            Debug.Log($"Testing animation: {state}");
-            PlayStateAnimation(state);
-            yield return new WaitForSeconds(2f);
-        }
-
-        PlayStateAnimation(CharacterStateType.Idle);
-    }
-#endif
-
-    #endregion
 }

@@ -1,37 +1,46 @@
 ﻿using System;
+using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.InputSystem.XInput;
+
 
 public class Character : MonoBehaviour, ITakeDamage
 {
-    [SerializeField] private CharacterType _characterType = CharacterType.Player;
-    [SerializeField] private CharacterFaction _faction = CharacterFaction.PlayerTeam;
-    [SerializeField] private int _characterId = 0;
-    [SerializeField] private string _characterName = "Character";
+    [SerializeField] 
+    private CharacterType _characterType = CharacterType.Player;
 
-    [SerializeField] private CharacterStats _stats;
-    [SerializeField] private CharacterAnimationController _characterAnimationController;
-    [SerializeField] private Rigidbody _rigidbody;
-    [SerializeField] private Collider _collider;
+    [SerializeField] 
+    private CharacterFaction _faction = CharacterFaction.PlayerTeam;
 
-    // Core Systems
-    private CharacterStateMachine _stateMachine;
-    private CharacterMovementComponent _movementComponent;
-    private CharacterCombatController _combatController;
-    private CharacterHealthController _healthComponent;
-    private CharacterAIController _aiController;
-    private CharacterInputController _inputController;
+    [SerializeField] 
+    private int _characterId = 0;
+
+    [SerializeField] 
+    private CharacterStats _stats;
+
+    [SerializeField] 
+    private CharacterAnimationController _characterAnimationController;
+
+    [SerializeField]
+    private Rigidbody _rigidbody;
+
+    public CharacterStateMachine StateMachine;
+    public CharacterAnimationController AnimationController;
+    public CharacterMovementComponent MovementComponent;
+    public CharacterAttackComponent AttackComponent;
+    public CharacterHealthComponent HealthComponent;
+    public CharacterAIController AIController;
+    public CharacterInputController InputController;
 
     // Cache for performance
     private Transform _transform;
     private bool _isInitialized;
 
-    #region Properties
-
     // Identity Properties
     public CharacterType CharacterType => _characterType;
     public CharacterFaction Faction => _faction;
     public int CharacterId => _characterId;
-    public string CharacterName => _characterName;
+    public string CharacterName { get; private set; }
 
     // Type Checks
     public bool IsPlayer => _characterType == CharacterType.Player;
@@ -40,51 +49,48 @@ public class Character : MonoBehaviour, ITakeDamage
     public bool IsPlayerTeam => _faction == CharacterFaction.PlayerTeam;
     public bool IsEnemyTeam => _faction == CharacterFaction.EnemyTeam;
 
-    // Core Component Access
     public CharacterStats Stats => _stats;
-    public Animator Animator => _animator;
     public Rigidbody Rigidbody => _rigidbody;
-    public Collider Collider => _collider;
     public Transform Transform => _transform;
 
-    // System Access
-    public CharacterStateMachine StateMachine => _stateMachine;
-    public CharacterAnimationController AnimationController => _animationController;
-    public CharacterMovementController MovementController => _movementComponent;
-    public CharacterCombatController CombatController => _combatController;
-    public CharacterHealthComponent HealthComponent => _healthComponent;
-    public CharacterAIController AIController => _aiController;
-    public CharacterInputController InputController => _inputController;
-
-    // State Access
-    public CharacterStateType CurrentState => _stateMachine?.CurrentStateType ?? CharacterStateType.Idle;
+    public CharacterStateType CurrentState => StateMachine?.CurrentStateType ?? CharacterStateType.Idle;
     public bool IsInState(CharacterStateType stateType) => CurrentState == stateType;
 
-    // Status Properties
-    public bool IsDead => _healthComponent?.IsDead ?? false;
+    public bool IsDead => HealthComponent?.IsDead ?? false;
     public bool IsAlive => !IsDead;
-    public bool IsStunned => _healthComponent?.IsStunned ?? false;
-    public bool IsMoving => _movementComponent?.IsMoving ?? false;
-    public bool IsAttacking => _combatController?.IsAttacking ?? false;
-    public bool CanMove => _movementComponent?.CanMove ?? true;
-    public bool CanAttack => _combatController?.CanAttack ?? true;
+    public bool IsStunned => HealthComponent?.IsStunned ?? false;
+    public bool IsMoving => MovementComponent?.IsMoving ?? false;
+    public bool IsAttacking => AttackComponent?.IsAttacking ?? false;
+    public bool CanMove => MovementComponent?.CanMove ?? true;
+    public bool CanAttack => AttackComponent?.CanAttack ?? true;
 
-    // Events
     public event Action<CharacterStateType, CharacterStateType> OnStateChanged;
     public event Action<float> OnHealthChanged;
     public event Action OnDeath;
     public event Action OnRevive;
     public event Action<Character> OnTargetChanged;
 
-    #endregion
-
-    #region Unity Lifecycle
+    private List<CharacterComponentBase> _components = new List<CharacterComponentBase>();
 
     private void Awake()
     {
-        _transform = transform;
-        CacheComponents();
-        InitializeSystems();
+        _transform = this.transform;
+        CharacterName = _stats.CharacterName;
+        _components.Add(MovementComponent);
+        _components.Add(AttackComponent);
+        _components.Add(HealthComponent);
+
+        StateMachine?.Initialize(this);
+
+        if (AIController != null)
+        {
+            AIController.Initialize(this);
+        }
+
+        if (InputController != null)
+        {
+            InputController.Initialize(this);
+        }
     }
 
     private void Start()
@@ -94,14 +100,20 @@ public class Character : MonoBehaviour, ITakeDamage
 
     private void Update()
     {
-        if (!_isInitialized) return;
+        if (!_isInitialized)
+        {
+            return;
+        }    
 
         UpdateSystems(Time.deltaTime);
     }
 
     private void FixedUpdate()
     {
-        if (!_isInitialized) return;
+        if (!_isInitialized)
+        {
+            return;
+        }
 
         FixedUpdateSystems(Time.fixedDeltaTime);
     }
@@ -111,156 +123,104 @@ public class Character : MonoBehaviour, ITakeDamage
         CleanupSystems();
     }
 
-    #endregion
-
-    #region Initialization
-
-    private void CacheComponents()
-    {
-        if (_stats == null) _stats = GetComponent<CharacterStats>();
-        if (_animator == null) _animator = GetComponent<Animator>();
-        if (_rigidbody == null) _rigidbody = GetComponent<Rigidbody>();
-        if (_collider == null) _collider = GetComponent<Collider>();
-    }
-
-    private void InitializeSystems()
-    {
-        // Initialize core systems
-        _stateMachine = GetOrAddComponent<CharacterStateMachine>();
-        _animationController = GetOrAddComponent<CharacterAnimationController>();
-        _movementComponent = GetOrAddComponent<CharacterMovementController>();
-        _combatController = GetOrAddComponent<CharacterCombatController>();
-        _healthComponent = GetOrAddComponent<CharacterHealthController>();
-
-        // Initialize AI or Input based on character type
-        if (IsPlayer)
-        {
-            _inputController = GetOrAddComponent<CharacterInputController>();
-        }
-        else
-        {
-            _aiController = GetOrAddComponent<CharacterAIController>();
-        }
-
-        // Initialize all systems with this character reference
-        InitializeSystemsWithCharacter();
-    }
-
     private void InitializeSystemsWithCharacter()
     {
-        _stateMachine?.Initialize(this);
-        _animationController?.Initialize(this);
-        _movementComponent?.Initialize(this);
-        _combatController?.Initialize(this);
-        _healthComponent?.Initialize(this);
-        _aiController?.Initialize(this);
-        _inputController?.Initialize(this);
+        for (int i = 0; i < _components.Count; i++)
+        {
+            _components[i].Initialize(this);
+        }
     }
 
     private void CompleteInitialization()
     {
-        // Subscribe to events
         SubscribeToEvents();
-
-        // Set initial state
-        _stateMachine?.ChangeState(CharacterStateType.Idle);
+        StateMachine?.ChangeState(CharacterStateType.Idle);
 
         _isInitialized = true;
     }
 
-    private T GetOrAddComponent<T>() where T : Component
-    {
-        var component = GetComponent<T>();
-        if (component == null)
-            component = gameObject.AddComponent<T>();
-        return component;
-    }
-
-    #endregion
-
-    #region System Updates
-
     private void UpdateSystems(float deltaTime)
     {
-        _stateMachine?.UpdateLogic(deltaTime);
-        _animationController?.UpdateLogic(deltaTime);
-        _movementComponent?.UpdateLogic(deltaTime);
-        _combatController?.UpdateLogic(deltaTime);
-        _healthComponent?.UpdateLogic(deltaTime);
-        _aiController?.UpdateLogic(deltaTime);
-        _inputController?.UpdateLogic(deltaTime);
+        if (StateMachine != null)
+        {
+            StateMachine.UpdateLogic(deltaTime);
+        }
+
+        if (AIController != null)
+        {
+            AIController.UpdateLogic(deltaTime);
+        }
+
+        for (int i = 0; i < _components.Count; i++)
+        {
+            if (_components[i] != null)
+            {
+                _components[i].UpdateLogic(deltaTime);
+            }
+        }
     }
 
     private void FixedUpdateSystems(float fixedDeltaTime)
     {
-        _stateMachine?.UpdatePhysics(fixedDeltaTime);
-        _movementComponent?.UpdatePhysics(fixedDeltaTime);
-        _combatController?.UpdatePhysics(fixedDeltaTime);
+        if (StateMachine != null)
+        {
+            StateMachine.UpdatePhysics(fixedDeltaTime);
+        }
+
+        for (int i = 0; i < _components.Count; i++)
+        {
+            if (_components[i] != null)
+            {
+                _components[i].UpdatePhysics(fixedDeltaTime);
+            }
+        }
     }
-
-    #endregion
-
-    #region Public API
-
-    // State Management
     public void ChangeState(CharacterStateType newState)
     {
-        _stateMachine?.ChangeState(newState);
+        StateMachine?.ChangeState(newState);
     }
 
     public void ForceChangeState(CharacterStateType newState)
     {
-        _stateMachine?.ForceChangeState(newState);
-    }
-
-    // Animation Control
-    public void PlayAnimation(string animationName, float crossFadeTime = 0.1f)
-    {
-        _animationController?.PlayAnimation(animationName, crossFadeTime);
-    }
-
-    public void SetAnimationSpeed(float speed)
-    {
-        _animationController?.SetAnimationSpeed(speed);
+        StateMachine?.ForceChangeState(newState);
     }
 
     // Movement Control
     public void MoveTo(Vector3 targetPosition)
     {
-        _movementComponent?.MoveTo(targetPosition);
+        MovementComponent?.MoveTo(targetPosition);
     }
 
     public void LookAt(Vector3 targetPosition)
     {
-        _movementComponent?.LookAt(targetPosition);
+        MovementComponent?.LookAt(targetPosition);
     }
 
     public void StopMovement()
     {
-        _movementComponent?.Stop();
+        MovementComponent?.Stop();
     }
 
     // Combat Control
     public void AttackTarget(Character target)
     {
-        _combatController?.AttackTarget(target);
+        AttackComponent?.AttackTarget(target);
     }
 
     public void TakeDamage(float damage, Character attacker = null)
     {
-        _healthComponent?.TakeDamage(damage, attacker);
+        HealthComponent?.TakeDamage(damage, attacker);
     }
 
     public void Heal(float amount)
     {
-        _healthComponent?.Heal(amount);
+        HealthComponent?.Heal(amount);
     }
 
     // Character Management
     public void SetCharacterType(CharacterType type)
     {
         _characterType = type;
-        ReconfigureForType();
     }
 
     public void SetFaction(CharacterFaction faction)
@@ -304,20 +264,16 @@ public class Character : MonoBehaviour, ITakeDamage
         return (position - _transform.position).normalized;
     }
 
-    #endregion
-
-    #region Event Handling
-
     private void SubscribeToEvents()
     {
-        if (_stateMachine != null)
-            _stateMachine.OnStateChanged += HandleStateChanged;
+        if (StateMachine != null)
+            StateMachine.OnStateChanged += HandleStateChanged;
 
-        if (_healthComponent != null)
+        if (HealthComponent != null)
         {
-            _healthComponent.OnHealthChanged += HandleHealthChanged;
-            _healthComponent.OnDeath += HandleDeath;
-            _healthComponent.OnRevive += HandleRevive;
+            HealthComponent.OnHealthChanged += HandleHealthChanged;
+            HealthComponent.OnDeath += HandleDeath;
+            HealthComponent.OnRevive += HandleRevive;
         }
     }
 
@@ -343,79 +299,22 @@ public class Character : MonoBehaviour, ITakeDamage
         OnRevive?.Invoke();
     }
 
-    #endregion
-
-    #region Private Methods
-
-    private void ReconfigureForType()
-    {
-        // Remove old controller
-        if (_inputController != null && !IsPlayer)
-        {
-            DestroyImmediate(_inputController);
-            _inputController = null;
-        }
-
-        if (_aiController != null && IsPlayer)
-        {
-            DestroyImmediate(_aiController);
-            _aiController = null;
-        }
-
-        // Add appropriate controller
-        if (IsPlayer && _inputController == null)
-        {
-            _inputController = GetOrAddComponent<CharacterInputController>();
-            _inputController.Initialize(this);
-        }
-        else if (!IsPlayer && _aiController == null)
-        {
-            _aiController = GetOrAddComponent<CharacterAIController>();
-            _aiController.Initialize(this);
-        }
-    }
-
     private void CleanupSystems()
     {
         // Unsubscribe from events
-        if (_stateMachine != null)
-            _stateMachine.OnStateChanged -= HandleStateChanged;
+        if (StateMachine != null)
+            StateMachine.OnStateChanged -= HandleStateChanged;
 
-        if (_healthComponent != null)
+        if (HealthComponent != null)
         {
-            _healthComponent.OnHealthChanged -= HandleHealthChanged;
-            _healthComponent.OnDeath -= HandleDeath;
-            _healthComponent.OnRevive -= HandleRevive;
-        }
-    }
-
-    #endregion
-
-    #region Debug
-
-    [System.Diagnostics.Conditional("UNITY_EDITOR")]
-    public void DebugLog(string message)
-    {
-        Debug.Log($"[{_characterName}] {message}", this);
-    }
-
-    private void OnDrawGizmosSelected()
-    {
-        // Draw character info
-        if (_stats != null)
-        {
-            Gizmos.color = IsPlayer ? Color.green : (IsEnemy ? Color.red : Color.blue);
-            Gizmos.DrawWireSphere(transform.position, _stats.DetectionRange);
-
-            Gizmos.color = Color.yellow;
-            Gizmos.DrawWireSphere(transform.position, _stats.AttackRange);
+            HealthComponent.OnHealthChanged -= HandleHealthChanged;
+            HealthComponent.OnDeath -= HandleDeath;
+            HealthComponent.OnRevive -= HandleRevive;
         }
     }
 
     public void TakeDamage(int damageAmount)
     {
-        _healthComponent.TakeDamage(damageAmount);
+        HealthComponent.TakeDamage(damageAmount);
     }
-
-    #endregion
 }

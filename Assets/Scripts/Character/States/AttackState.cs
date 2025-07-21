@@ -11,7 +11,7 @@ public class AttackState : CharacterBaseState
     public override void Enter()
     {
         _character.AnimationController?.PlayAttack();
-        _character.MovementController?.Stop();
+        _character.MovementComponent?.Stop();
         _attackTimer = 0f;
     }
 
