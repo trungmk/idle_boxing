@@ -951,10 +951,7 @@ PrefabInstance:
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents:
-    - targetCorrespondingSourceObject: {fileID: 3701641740534263100, guid: 2478d6e49e2d9ef4090b572749da8043, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 0}
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 2478d6e49e2d9ef4090b572749da8043, type: 3}
 --- !u!224 &1020752764 stripped
 RectTransform:
@@ -1946,6 +1943,14 @@ PrefabInstance:
     - target: {fileID: 1674189402923318131, guid: 92e3fc1ce19b2004daef6b1e9c90d457, type: 3}
       propertyPath: m_Name
       value: MenuPanel
+      objectReference: {fileID: 0}
+    - target: {fileID: 5053820264266081431, guid: 92e3fc1ce19b2004daef6b1e9c90d457, type: 3}
+      propertyPath: m_SizeDelta.y
+      value: -13.18
+      objectReference: {fileID: 0}
+    - target: {fileID: 5053820264266081431, guid: 92e3fc1ce19b2004daef6b1e9c90d457, type: 3}
+      propertyPath: m_AnchoredPosition.y
+      value: 6.59
       objectReference: {fileID: 0}
     - target: {fileID: 5122405221907030805, guid: 92e3fc1ce19b2004daef6b1e9c90d457, type: 3}
       propertyPath: m_Pivot.x

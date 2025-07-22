@@ -1,24 +1,22 @@
 ﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
-using UnityEngine.InputSystem.XInput;
-
 
 public class Character : MonoBehaviour, ITakeDamage
 {
-    [SerializeField] 
+    [SerializeField]
     private CharacterType _characterType = CharacterType.Player;
 
-    [SerializeField] 
+    [SerializeField]
     private CharacterFaction _faction = CharacterFaction.PlayerTeam;
 
-    [SerializeField] 
+    [SerializeField]
     private int _characterId = 0;
 
-    [SerializeField] 
-    private CharacterStats _stats;
+    [SerializeField]
+    private CharacterStats _statsTemplate;
 
-    [SerializeField] 
+    [SerializeField]
     private CharacterAnimationController _characterAnimationController;
 
     [SerializeField]
@@ -32,24 +30,24 @@ public class Character : MonoBehaviour, ITakeDamage
     public CharacterAIController AIController;
     public CharacterInputController InputController;
 
-    // Cache for performance
     private Transform _transform;
     private bool _isInitialized;
+    private CharacterStatsInstance _runtimeStats;
+    private List<CharacterComponentBase> _components = new List<CharacterComponentBase>();
 
-    // Identity Properties
     public CharacterType CharacterType => _characterType;
     public CharacterFaction Faction => _faction;
     public int CharacterId => _characterId;
     public string CharacterName { get; private set; }
 
-    // Type Checks
     public bool IsPlayer => _characterType == CharacterType.Player;
     public bool IsEnemy => _characterType == CharacterType.Enemy;
     public bool IsFriendly => _characterType == CharacterType.Friendly;
     public bool IsPlayerTeam => _faction == CharacterFaction.PlayerTeam;
     public bool IsEnemyTeam => _faction == CharacterFaction.EnemyTeam;
 
-    public CharacterStats Stats => _stats;
+    public CharacterStats Stats => _statsTemplate;
+    public CharacterStatsInstance RuntimeStats => _runtimeStats;
     public Rigidbody Rigidbody => _rigidbody;
     public Transform Transform => _transform;
 
@@ -70,27 +68,12 @@ public class Character : MonoBehaviour, ITakeDamage
     public event Action OnRevive;
     public event Action<Character> OnTargetChanged;
 
-    private List<CharacterComponentBase> _components = new List<CharacterComponentBase>();
-
     private void Awake()
     {
-        _transform = this.transform;
-        CharacterName = _stats.CharacterName;
-        _components.Add(MovementComponent);
-        _components.Add(AttackComponent);
-        _components.Add(HealthComponent);
-
-        StateMachine?.Initialize(this);
-
-        if (AIController != null)
-        {
-            AIController.Initialize(this);
-        }
-
-        if (InputController != null)
-        {
-            InputController.Initialize(this);
-        }
+        _transform = transform;
+        InitializeRuntimeStats();
+        InitializeComponents();
+        SubscribeToEvents();
     }
 
     private void Start()
@@ -100,21 +83,13 @@ public class Character : MonoBehaviour, ITakeDamage
 
     private void Update()
     {
-        if (!_isInitialized)
-        {
-            return;
-        }    
-
+        if (!_isInitialized) return;
         UpdateSystems(Time.deltaTime);
     }
 
     private void FixedUpdate()
     {
-        if (!_isInitialized)
-        {
-            return;
-        }
-
+        if (!_isInitialized) return;
         FixedUpdateSystems(Time.fixedDeltaTime);
     }
 
@@ -123,19 +98,42 @@ public class Character : MonoBehaviour, ITakeDamage
         CleanupSystems();
     }
 
-    private void InitializeSystemsWithCharacter()
+    private void InitializeRuntimeStats()
     {
+        if (_statsTemplate != null)
+        {
+            _runtimeStats = new CharacterStatsInstance(_statsTemplate);
+            CharacterName = _runtimeStats.CharacterName;
+        }
+        else
+        {
+            _runtimeStats = new CharacterStatsInstance();
+            CharacterName = _runtimeStats.CharacterName;
+        }
+    }
+
+    private void InitializeComponents()
+    {
+        if (MovementComponent != null) _components.Add(MovementComponent);
+        if (AttackComponent != null) _components.Add(AttackComponent);
+        if (HealthComponent != null) _components.Add(HealthComponent);
+
         for (int i = 0; i < _components.Count; i++)
         {
             _components[i].Initialize(this);
         }
+
+        if (StateMachine != null) StateMachine.Initialize(this);
+        if (AIController != null) AIController.Initialize(this);
+        if (InputController != null) InputController.Initialize(this);
     }
 
     private void CompleteInitialization()
     {
-        SubscribeToEvents();
-        StateMachine?.ChangeState(CharacterStateType.Idle);
-
+        if (StateMachine != null)
+        {
+            StateMachine.ChangeState(CharacterStateType.Idle);
+        }
         _isInitialized = true;
     }
 
@@ -175,6 +173,7 @@ public class Character : MonoBehaviour, ITakeDamage
             }
         }
     }
+
     public void ChangeState(CharacterStateType newState)
     {
         StateMachine?.ChangeState(newState);
@@ -185,7 +184,6 @@ public class Character : MonoBehaviour, ITakeDamage
         StateMachine?.ForceChangeState(newState);
     }
 
-    // Movement Control
     public void MoveTo(Vector3 targetPosition)
     {
         MovementComponent?.MoveTo(targetPosition);
@@ -201,7 +199,6 @@ public class Character : MonoBehaviour, ITakeDamage
         MovementComponent?.Stop();
     }
 
-    // Combat Control
     public void AttackTarget(Character target)
     {
         AttackComponent?.AttackTarget(target);
@@ -212,12 +209,16 @@ public class Character : MonoBehaviour, ITakeDamage
         HealthComponent?.TakeDamage(damage, attacker);
     }
 
+    public void TakeDamage(int damageAmount)
+    {
+        HealthComponent?.TakeDamage(damageAmount);
+    }
+
     public void Heal(float amount)
     {
         HealthComponent?.Heal(amount);
     }
 
-    // Character Management
     public void SetCharacterType(CharacterType type)
     {
         _characterType = type;
@@ -228,7 +229,61 @@ public class Character : MonoBehaviour, ITakeDamage
         _faction = faction;
     }
 
-    // Relationship Checks
+    public void AssignStats(CharacterStatsInstance newStats)
+    {
+        _runtimeStats = newStats;
+        CharacterName = _runtimeStats.CharacterName;
+
+        if (_isInitialized)
+        {
+            ReinitializeWithNewStats();
+        }
+    }
+
+    public void AssignStatsFromLevel(LevelDataInstance levelData)
+    {
+        if (_statsTemplate != null && levelData != null)
+        {
+            _runtimeStats = new CharacterStatsInstance(levelData, _statsTemplate);
+            CharacterName = _runtimeStats.CharacterName;
+
+            if (_isInitialized)
+            {
+                ReinitializeWithNewStats();
+            }
+        }
+    }
+
+    public void UpdateStatsFromTemplate()
+    {
+        if (_statsTemplate != null)
+        {
+            _runtimeStats.CopyFromCharacterStats(_statsTemplate);
+            CharacterName = _runtimeStats.CharacterName;
+
+            if (_isInitialized)
+            {
+                ReinitializeWithNewStats();
+            }
+        }
+    }
+
+    private void ReinitializeWithNewStats()
+    {
+        if (HealthComponent != null)
+        {
+            HealthComponent.Initialize(this);
+        }
+
+        for (int i = 0; i < _components.Count; i++)
+        {
+            if (_components[i] != null)
+            {
+                _components[i].Initialize(this);
+            }
+        }
+    }
+
     public bool IsEnemyOf(Character other)
     {
         if (other == null) return false;
@@ -241,7 +296,6 @@ public class Character : MonoBehaviour, ITakeDamage
         return _faction == other._faction;
     }
 
-    // Utility Methods
     public float GetDistanceTo(Character other)
     {
         if (other == null) return float.MaxValue;
@@ -264,10 +318,103 @@ public class Character : MonoBehaviour, ITakeDamage
         return (position - _transform.position).normalized;
     }
 
+    public Character FindNearestEnemy(float searchRadius = 10f)
+    {
+        Collider[] colliders = Physics.OverlapSphere(_transform.position, searchRadius);
+        Character nearestEnemy = null;
+        float nearestDistance = float.MaxValue;
+
+        foreach (var collider in colliders)
+        {
+            Character other = collider.GetComponent<Character>();
+            if (other != null && IsEnemyOf(other) && other.IsAlive)
+            {
+                float distance = GetDistanceTo(other);
+                if (distance < nearestDistance)
+                {
+                    nearestDistance = distance;
+                    nearestEnemy = other;
+                }
+            }
+        }
+
+        return nearestEnemy;
+    }
+
+    public List<Character> FindEnemiesInRange(float searchRadius = 10f)
+    {
+        List<Character> enemies = new List<Character>();
+        Collider[] colliders = Physics.OverlapSphere(_transform.position, searchRadius);
+
+        foreach (var collider in colliders)
+        {
+            Character other = collider.GetComponent<Character>();
+            if (other != null && IsEnemyOf(other) && other.IsAlive)
+            {
+                enemies.Add(other);
+            }
+        }
+
+        return enemies;
+    }
+
+    public List<Character> FindAlliesInRange(float searchRadius = 10f)
+    {
+        List<Character> allies = new List<Character>();
+        Collider[] colliders = Physics.OverlapSphere(_transform.position, searchRadius);
+
+        foreach (var collider in colliders)
+        {
+            Character other = collider.GetComponent<Character>();
+            if (other != null && IsAllyOf(other) && other.IsAlive)
+            {
+                allies.Add(other);
+            }
+        }
+
+        return allies;
+    }
+
+    public void ApplyStun(float duration)
+    {
+        HealthComponent?.ApplyStun(duration);
+    }
+
+    public void Revive(float healthPercentage = 1f)
+    {
+        if (HealthComponent != null && IsDead)
+        {
+            HealthComponent.Revive(healthPercentage);
+        }
+    }
+
+    public void ResetToIdle()
+    {
+        StopMovement();
+        ChangeState(CharacterStateType.Idle);
+    }
+
+    public void EnableCharacter()
+    {
+        gameObject.SetActive(true);
+        if (_isInitialized)
+        {
+            ResetToIdle();
+        }
+    }
+
+    public void DisableCharacter()
+    {
+        StopMovement();
+        gameObject.SetActive(false);
+    }
+
     private void SubscribeToEvents()
     {
         if (StateMachine != null)
+        {
             StateMachine.OnStateChanged += HandleStateChanged;
+        }
 
         if (HealthComponent != null)
         {
@@ -301,9 +448,10 @@ public class Character : MonoBehaviour, ITakeDamage
 
     private void CleanupSystems()
     {
-        // Unsubscribe from events
         if (StateMachine != null)
+        {
             StateMachine.OnStateChanged -= HandleStateChanged;
+        }
 
         if (HealthComponent != null)
         {
@@ -311,10 +459,5 @@ public class Character : MonoBehaviour, ITakeDamage
             HealthComponent.OnDeath -= HandleDeath;
             HealthComponent.OnRevive -= HandleRevive;
         }
-    }
-
-    public void TakeDamage(int damageAmount)
-    {
-        HealthComponent.TakeDamage(damageAmount);
     }
 }
