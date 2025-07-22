@@ -16,7 +16,17 @@ MonoBehaviour:
   m_GUID: d83a0738a9a0b2d4295d190ef598766d
   m_SerializeEntries:
   - m_GUID: 2478d6e49e2d9ef4090b572749da8043
-    m_Address: SplashScreenPanel
+    m_Address: SplashScreenTransition
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 92e3fc1ce19b2004daef6b1e9c90d457
+    m_Address: MenuPanel
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: dd9f5197d3bf7aa4f8c2e7bf4b03ef2a
+    m_Address: InGamePanel
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
