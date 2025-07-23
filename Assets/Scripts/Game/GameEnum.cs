@@ -1,4 +1,4 @@
-﻿public enum FightMode : byte
+﻿public enum FightMode : int
 {
     OneVsOne = 0,
 

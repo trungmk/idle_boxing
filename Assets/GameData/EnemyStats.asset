@@ -10,14 +10,14 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: e596e5239774e6e4d85a6c355a13c655, type: 3}
-  m_Name: CharacterStats
+  m_Name: EnemyStats
   m_EditorClassIdentifier: 
-  CharacterName: Default Character
-  MaxHealth: 100
-  AttackPower: 15
+  CharacterName: Default Enemy
+  MaxHealth: 60
+  AttackPower: 10
   AttackCooldown: 1.5
   MoveSpeed: 1
-  HasRangeAttack: 1
-  RangeAttackPower: 35
+  HasRangeAttack: 0
+  RangeAttackPower: 15
   CriticalChance: 0.05
   CriticalMultiplier: 1.5

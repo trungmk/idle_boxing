@@ -1,13 +1,14 @@
 ﻿using UnityEngine;
 using System.Collections.Generic;
 
-public class LevelManager : MonoBehaviour
+public class LevelManager : MonoSingleton<LevelManager>
 {
     public LevelGenerator LevelGenerator;
     public int MaxCachedLevels = 20;
+    public FightMode CurrentFightMode { get; set; } = FightMode.OneVsOne;
 
     private readonly Dictionary<int, LevelDataInstance> _levelCache = new Dictionary<int, LevelDataInstance>();
-    private readonly Dictionary<int, CharacterStats> _enemyStatsCache = new Dictionary<int, CharacterStats>();
+    private readonly Dictionary<int, CharacterStatsInstance> _enemyStatsCache = new Dictionary<int, CharacterStatsInstance>();
 
     public LevelDataInstance GetLevel(int levelNumber)
     {
@@ -16,22 +17,21 @@ public class LevelManager : MonoBehaviour
             return cachedLevel;
         }
 
-        // Generate and cache
         LevelDataInstance newLevel = LevelGenerator.GenerateLevel(levelNumber);
         CacheLevel(levelNumber, newLevel);
 
         return newLevel;
     }
 
-    public CharacterStats GetEnemyStats(int levelNumber)
+    public CharacterStatsInstance GetEnemyStats(int levelNumber)
     {
-        if (_enemyStatsCache.TryGetValue(levelNumber, out CharacterStats cachedStats))
+        if (_enemyStatsCache.TryGetValue(levelNumber, out CharacterStatsInstance cachedStats))
         {
             return cachedStats;
         }
 
-        // Generate and cache
-        CharacterStats newStats = LevelGenerator.CreateEnemyStatsForLevel(levelNumber);
+        LevelDataInstance levelData = GetLevel(levelNumber);
+        CharacterStatsInstance newStats = new CharacterStatsInstance(levelData, LevelGenerator.BaseEnemyStats);
         CacheEnemyStats(levelNumber, newStats);
 
         return newStats;
@@ -47,7 +47,7 @@ public class LevelManager : MonoBehaviour
         _levelCache[levelNumber] = levelData;
     }
 
-    private void CacheEnemyStats(int levelNumber, CharacterStats stats)
+    private void CacheEnemyStats(int levelNumber, CharacterStatsInstance stats)
     {
         if (_enemyStatsCache.Count >= MaxCachedLevels)
         {

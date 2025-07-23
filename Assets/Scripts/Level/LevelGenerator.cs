@@ -10,7 +10,6 @@ public class LevelGenerator : ScriptableObject
     public float CritScalingPerLevel = 0.01f; 
     public float SpeedScalingPerLevel = 0.2f;
 
-    // Generate runtime level data (no ScriptableObject creation)
     public LevelDataInstance GenerateLevel(int levelNumber)
     {
         if (BaseEnemyStats == null)
@@ -26,26 +25,6 @@ public class LevelGenerator : ScriptableObject
         float enemySpeed = BaseEnemyStats.MoveSpeed * (1f + SpeedScalingPerLevel * levelMultiplier);
 
         return new LevelDataInstance(levelNumber, enemyHealth, enemyDamage, enemyCrit, enemySpeed);
-    }
-
-    public CharacterStats CreateEnemyStatsForLevel(int levelNumber)
-    {
-        if (BaseEnemyStats == null)
-        {
-            Debug.LogError("BaseEnemyStats not assigned!");
-            return null;
-        }
-
-        LevelDataInstance levelData = GenerateLevel(levelNumber);
-        float healthMultiplier = levelData.EnemyHealth / BaseEnemyStats.MaxHealth;
-        float damageMultiplier = levelData.EnemyDamage / BaseEnemyStats.AttackPower;
-        float critMultiplier = levelData.EnemyCrit / BaseEnemyStats.CriticalChance;
-
-        CharacterStats enemyStats = BaseEnemyStats.CreateScaledVersion(healthMultiplier, damageMultiplier, critMultiplier);
-        enemyStats.MoveSpeed = levelData.EnemySpeed;
-        enemyStats.CharacterName = $"Enemy Level {levelNumber}";
-
-        return enemyStats;
     }
 
     public List<LevelDataInstance> GenerateLevels(int startLevel, int endLevel)
